@@ -68,10 +68,12 @@ def bayesian(moves_prob, gram_len):
     grams_movesprobability_byexp = math.log10(moves_prob)
     return grams_movesprobability_byexp - gram_len
 
+from heapq import heappush, heappop
+
 
 def gen_new_moves(sent):
     result_moves = [[], [], [], [], []]
-    for sentence, ngrams, moves in sent:
+    for sent_idx, (sentence, ngrams, moves) in enumerate(sent):
         BPMRC_TOTAL = [0.15, 0.25, 0.2, 0.25, 0.15]
         # print sent[sentence]
         gram_len = math.log10(1 / len(ngrams))
@@ -92,7 +94,8 @@ def gen_new_moves(sent):
                     BPMRC_TOTAL[i] += bayesian(0.01, gram_len)
 
         for j in range(0, 5):
-            result_moves[j].append(BPMRC_TOTAL[j])
+            heappush(result_moves[j], (-BPMRC_TOTAL[j], sent_idx))
+            # result_moves[j].append(BPMRC_TOTAL[j])
 
     return result_moves
 
@@ -167,20 +170,22 @@ if __name__ == '__main__':
         # 所有句子當中的B，若句子A1的B為最大值，則將A1 tag 為B
         already_found = set()
         # print "Moves is B: "
-        from operator import itemgetter
+
         for move_indicator in range(0, 5):
             BPMRC = 'BPMRC'
             # move_indicator 找出最大值的句子位置
             while max_BPMRC[move_indicator] != 0:
-                current_max_move_index = max(
-                    enumerate(result_moves[move_indicator]), key=itemgetter(1))[0]
+                # current_max_move_index = max(
+                    # enumerate(result_moves[move_indicator]), key=itemgetter(1))[0]
+                current_max_move_index = heappop(result_moves[move_indicator])[1]
 
                 # current_max_move_index = result_moves[
                 #     move_indicator].index(max(result_moves[move_indicator]))
                 # 若是該句已經被tag，則尋找第二高的句子為B
 
                 if current_max_move_index in already_found:
-                    result_moves[move_indicator][current_max_move_index] = -10000
+                    continue
+                    # result_moves[move_indicator][current_max_move_index] = -10000
 
                 already_found.add(current_max_move_index)
                 #target_sentences = sent.items()[current_max_move_index][0]
