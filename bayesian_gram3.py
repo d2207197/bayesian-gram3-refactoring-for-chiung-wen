@@ -71,9 +71,9 @@ def bayesian(moves_prob, gram_len):
 from heapq import heappush, heappop
 
 
-def gen_new_moves(sent):
+def gen_new_moves(sent, moves):
     result_moves = [[], [], [], [], []]
-    for sent_idx, (sentence, ngrams, moves) in enumerate(sent):
+    for sent_idx, (sentence, ngrams, _) in enumerate(sent):
         BPMRC_TOTAL = [0.15, 0.25, 0.2, 0.25, 0.15]
         # print sent[sentence]
         gram_len = math.log10(1 / len(ngrams))
@@ -164,7 +164,7 @@ if __name__ == '__main__':
         max_BPMRC = get_max_BPMRC(len(sent))
 
         # B[],P[],M[],R[],C[]
-        result_moves = gen_new_moves(sent)
+        result_moves = gen_new_moves(sent, moves)
         #print (sent)
 
         # 所有句子當中的B，若句子A1的B為最大值，則將A1 tag 為B
