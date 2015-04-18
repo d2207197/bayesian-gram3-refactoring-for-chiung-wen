@@ -34,20 +34,18 @@ def get_moves_data(filename):
     return moves
 
 
-def paragraph_to_sent_fourgrams(paragraph):
+def sent_tokenizer(paragraph):
     paragraph = paragraph.strip().lower().translate(None, ',()\\`;"[]:')
 
-    sentances = paragraph.split('. ')
+    sentences = paragraph.split('. ')
+    return sentences
+
+
+def sent_fourgrams(sentence):
     # 將句子切成4-gram 放入sent{} 當作value
     n = 4
-    for sentence in sentances:
-        if paragraph_count == 522:
-            print "sentence: " + str(sentence)
-        # 計算paragraph總共有幾句句子，才能從中選出可能為B的句子
-        if len(sentence) > 10 and len(sentence.split()) >= 4 and sentence not in sent:
-            fourgrams = ngrams(sentence.split(), n)
-            yield sentence, list(fourgrams)
-            # sent[sentence] = list(fourgrams)
+    yield sentence, list(ngrams(sentence.split(), n))
+    # sent[sentence] = list(fourgrams)
 
 
 def get_max_BPMRC(sent):
@@ -63,6 +61,50 @@ def get_max_BPMRC(sent):
     return max_BPMRC
 
 
+# 利用bayesian 計算
+def bayesian(sent):
+    result_moves = [[], [], [], [], []]
+    for sentence in sent:
+        BPMRC_TOTAL = [0.15, 0.25, 0.2, 0.25, 0.15]
+        # print sent[sentence]
+        gram_len = 1.0 / len(sent[sentence])
+        for gram in sent[sentence]:
+                # 若gram存在於moves={...}
+            if gram in moves:
+                gram_probability = float(moves[gram][
+                                         0]) + float(moves[gram][1]) + float(moves[gram][2]) + float(moves[gram][3]) + float(moves[gram][4])
+                for i in range(0, 5):
+                    if moves[gram][i] == 0:
+                        mini_probability = 0.01 / gram_probability
+                        grams_movesprobability_byexp = math.log(
+                            mini_probability, 10)
+                        BPMRC_TOTAL[i] = BPMRC_TOTAL[i] + \
+                            grams_movesprobability_byexp - \
+                            math.log(gram_len, 10)
+                    else:
+                        moves_probability = moves[
+                            gram][i] / gram_probability
+                        grams_movesprobability_byexp = math.log(
+                            moves_probability, 10)
+                        BPMRC_TOTAL[i] = BPMRC_TOTAL[i] + \
+                            grams_movesprobability_byexp - \
+                            math.log(gram_len, 10)
+            # 若gram不存在moves={...}
+            else:
+                for i in range(0, 5):
+                    mini_probability = 0.01
+                    grams_movesprobability_byexp = math.log(
+                        mini_probability, 10)
+                    BPMRC_TOTAL[i] = BPMRC_TOTAL[i] + \
+                        grams_movesprobability_byexp - \
+                        math.log(gram_len, 10)
+
+        for j in range(0, 5):
+            result_moves[j].append(BPMRC_TOTAL[j])
+
+    return result_moves
+
+
 if __name__ == '__main__':
 
     moves = get_moves_data('moves_data_initial.txt')
@@ -72,63 +114,24 @@ if __name__ == '__main__':
 
     # while paragraph_count < 200:
     for paragraph_count, paragraph in enumerate(
-            open('citeseerx_descriptions.txt', 'r')):
+            open('citeseerx_descriptions.txt.100', 'r')):
         start_time = time.time()
 
         # 因為第100篇的paragraph被抽出來當testing 所以要跳過training
         if paragraph_count == 100:
             continue
 
-        sent.update(paragraph_to_sent_fourgrams(paragraph))
+        for sentence in sent_tokenizer(paragraph):
+            if len(sentence) > 10 and len(sentence.split()) >= 4 and sentence not in sent:
+                sent.update(sent_fourgrams(sentence))
 
         max_BPMRC = get_max_BPMRC(sent)
 
         # B[],P[],M[],R[],C[]
-        result_moves = [[], [], [], [], []]
 
-        sentances_in_this_round = []
-
-        # 利用bayesian 計算
-        for sentanse in sent:
-            BPMRC_TOTAL = [0.15, 0.25, 0.2, 0.25, 0.15]
-            # print sent[sentanse]
-            gram_len = 1.0 / len(sent[sentanse])
-            sentances_in_this_round.append(sentanse)
-            for gram in sent[sentanse]:
-                # 若gram存在於moves={...}
-                if gram in moves:
-                    gram_probability = float(moves[gram][
-                                             0]) + float(moves[gram][1]) + float(moves[gram][2]) + float(moves[gram][3]) + float(moves[gram][4])
-                    for i in range(0, 5):
-                        if moves[gram][i] == 0:
-                            mini_probability = 0.01 / gram_probability
-                            grams_movesprobability_byexp = math.log(
-                                mini_probability, 10)
-                            BPMRC_TOTAL[i] = BPMRC_TOTAL[i] + \
-                                grams_movesprobability_byexp - \
-                                math.log(gram_len, 10)
-                        else:
-                            moves_probability = moves[
-                                gram][i] / gram_probability
-                            grams_movesprobability_byexp = math.log(
-                                moves_probability, 10)
-                            BPMRC_TOTAL[i] = BPMRC_TOTAL[i] + \
-                                grams_movesprobability_byexp - \
-                                math.log(gram_len, 10)
-                # 若gram不存在moves={...}
-                else:
-                    for i in range(0, 5):
-                        mini_probability = 0.01
-                        grams_movesprobability_byexp = math.log(
-                            mini_probability, 10)
-                        BPMRC_TOTAL[i] = BPMRC_TOTAL[i] + \
-                            grams_movesprobability_byexp - \
-                            math.log(gram_len, 10)
-
-            for j in range(0, 5):
-                result_moves[j].append(BPMRC_TOTAL[j])
-
+        result_moves = bayesian(sent)
         #print (sent)
+        sentences_in_this_round = sent.keys()
 
         # 所有句子當中的B，若句子A1的B為最大值，則將A1 tag 為B
         already_found = []
@@ -147,7 +150,7 @@ if __name__ == '__main__':
                 else:
                     already_found.append(current_max_move_index)
                     #target_sentences = sent.items()[current_max_move_index][0]
-                    target_sentences = sentances_in_this_round[
+                    target_sentences = sentences_in_this_round[
                         current_max_move_index]
                     # print "target_sentences2: " + target_sentences2
                     # print "target_sentences: " + target_sentences
