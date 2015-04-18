@@ -1,9 +1,11 @@
 # coding=UTF-8
 
+from __future__ import division
 import time
 import math
 from nltk.util import ngrams
 from collections import defaultdict
+
 # Read moves from file
 
 
@@ -62,42 +64,32 @@ def get_max_BPMRC(sent):
 
 
 # 利用bayesian 計算
-def bayesian(sent):
+def bayesian(moves_prob, gram_len):
+    grams_movesprobability_byexp = math.log10(moves_prob)
+    return grams_movesprobability_byexp - gram_len
+
+
+def gen_new_moves(sent):
     result_moves = [[], [], [], [], []]
     for sentence in sent:
         BPMRC_TOTAL = [0.15, 0.25, 0.2, 0.25, 0.15]
         # print sent[sentence]
-        gram_len = 1.0 / len(sent[sentence])
+        gram_len = math.log10(1 / len(sent[sentence]))
         for gram in sent[sentence]:
-                # 若gram存在於moves={...}
+
+            # 若gram存在於moves={...}
             if gram in moves:
-                gram_probability = float(moves[gram][
-                                         0]) + float(moves[gram][1]) + float(moves[gram][2]) + float(moves[gram][3]) + float(moves[gram][4])
+                gram_probability = sum(moves[gram])
                 for i in range(0, 5):
                     if moves[gram][i] == 0:
-                        mini_probability = 0.01 / gram_probability
-                        grams_movesprobability_byexp = math.log(
-                            mini_probability, 10)
-                        BPMRC_TOTAL[i] = BPMRC_TOTAL[i] + \
-                            grams_movesprobability_byexp - \
-                            math.log(gram_len, 10)
+                        BPMRC_TOTAL[i] += bayesian(0.01 / gram_probability, gram_len)
                     else:
-                        moves_probability = moves[
-                            gram][i] / gram_probability
-                        grams_movesprobability_byexp = math.log(
-                            moves_probability, 10)
-                        BPMRC_TOTAL[i] = BPMRC_TOTAL[i] + \
-                            grams_movesprobability_byexp - \
-                            math.log(gram_len, 10)
+                        BPMRC_TOTAL[i] += bayesian(moves[gram][i] / gram_probability, gram_len)
+
             # 若gram不存在moves={...}
             else:
                 for i in range(0, 5):
-                    mini_probability = 0.01
-                    grams_movesprobability_byexp = math.log(
-                        mini_probability, 10)
-                    BPMRC_TOTAL[i] = BPMRC_TOTAL[i] + \
-                        grams_movesprobability_byexp - \
-                        math.log(gram_len, 10)
+                    BPMRC_TOTAL[i] += bayesian(0.01, gram_len)
 
         for j in range(0, 5):
             result_moves[j].append(BPMRC_TOTAL[j])
@@ -128,8 +120,7 @@ if __name__ == '__main__':
         max_BPMRC = get_max_BPMRC(sent)
 
         # B[],P[],M[],R[],C[]
-
-        result_moves = bayesian(sent)
+        result_moves = gen_new_moves(sent)
         #print (sent)
         sentences_in_this_round = sent.keys()
 
