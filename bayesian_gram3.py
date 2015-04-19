@@ -26,8 +26,11 @@ def get_moves_data(filename):
             for i in range(4, 9):
                 temp_list.append(float(temp_line[i]))
             # print temp_list
-            moves[temp_line[0], temp_line[1],
-                  temp_line[2], temp_line[3]] = temp_list
+            moves[
+                temp_line[0],
+                temp_line[1],
+                temp_line[2],
+                temp_line[3]] = temp_list
 
         else:
             break
@@ -43,23 +46,15 @@ def sent_tokenizer(paragraph):
     return sentences
 
 
-def sent_fourgrams(sentence):
-    # 將句子切成4-gram 放入sent{} 當作value
-    n = 4
-    yield sentence, list(ngrams(sentence.split(), n))
-    # sent[sentence] = list(fourgrams)
-
-
 def get_max_BPMRC(sent_length):
     # 將句子的總數依照 b佔句子整體的10% p佔句子整體的30% 依此類推
-    max_BPMRC = [
-        # B_max, P_mac, M....R...C
+    max_BPMRC = [  # B_max, P_mac, M....R...C
         int(round(sent_length * 0.1)),
         int(round(sent_length * 0.3)),
-        int(round(sent_length * 0.3))]
-    max_BPMRC += [
-        len(sent) - (2 * max_BPMRC[0] + max_BPMRC[1] + max_BPMRC[2]),
-        int(round(sent_length * 0.1))]
+        int(round(sent_length * 0.3))
+    ]
+    max_BPMRC += [len(sent) - (2 * max_BPMRC[0] + max_BPMRC[1] + max_BPMRC[2]),
+                  int(round(sent_length * 0.1))]
     return max_BPMRC
 
 
@@ -67,6 +62,7 @@ def get_max_BPMRC(sent_length):
 def bayesian(moves_prob, gram_len):
     grams_movesprobability_byexp = math.log10(moves_prob)
     return grams_movesprobability_byexp - gram_len
+
 
 from heapq import heappush, heappop
 
@@ -84,9 +80,11 @@ def gen_new_moves(sent, moves):
                 gram_probability = sum(moves[gram])
                 for i in range(0, 5):
                     if moves[gram][i] == 0:
-                        BPMRC_TOTAL[i] += bayesian(0.01 / gram_probability, gram_len)
+                        BPMRC_TOTAL[i] += bayesian(0.01 / gram_probability,
+                                                   gram_len)
                     else:
-                        BPMRC_TOTAL[i] += bayesian(moves[gram][i] / gram_probability, gram_len)
+                        BPMRC_TOTAL[i] += bayesian(moves[gram][i] /
+                                                   gram_probability, gram_len)
 
             # 若gram不存在moves={...}
             else:
@@ -95,7 +93,8 @@ def gen_new_moves(sent, moves):
 
         for j in range(0, 5):
             heappush(result_moves[j], (-BPMRC_TOTAL[j], sent_idx))
-            # result_moves[j].append(BPMRC_TOTAL[j])
+
+            # result_moves[j].append((sent_idx, BPMRC_TOTAL[j]))
 
     return result_moves
 
@@ -114,6 +113,7 @@ def add_to_2lvl_set(two_lvl_set, obj):
     hash1, hash2 = dual_hash(obj)
     two_lvl_set[hash1].add(hash2)
 
+
 from collections import namedtuple
 
 SentData = namedtuple('SentData', ['sentence', 'ngrams', 'moves'])
@@ -121,9 +121,9 @@ SentData = namedtuple('SentData', ['sentence', 'ngrams', 'moves'])
 
 def moves_update(moves, move_indicator, max_move_sent_ngrams):
     for gram in max_move_sent_ngrams:
-                    # gram = update_word_list[0][i]
+        # gram = update_word_list[0][i]
 
-                    # 若gram存在於moves={...}
+        # 若gram存在於moves={...}
         if gram in moves:
             moves[gram][move_indicator] += 1
 
@@ -154,18 +154,18 @@ if __name__ == '__main__':
             continue
 
         for sentence in sent_tokenizer(paragraph):
-            if len(sentence) > 10 and len(sentence.split()) >= 4 and not in_2lvl_set(sent_set, sentence):
+            if len(sentence) > 10 and len(
+                    sentence.split()) >= 4 and not in_2lvl_set(sent_set, sentence):
 
                 add_to_2lvl_set(sent_set, sentence)
-                sent.append(SentData(sentence,
-                                     list(gen_ngrams(sentence.split(), 4)),
-                                     []))
+                sent.append(SentData(
+                    sentence, list(gen_ngrams(sentence.split(), 4)), []))
 
         max_BPMRC = get_max_BPMRC(len(sent))
 
         # B[],P[],M[],R[],C[]
         result_moves = gen_new_moves(sent, moves)
-        #print (sent)
+        # print (sent)
 
         # 所有句子當中的B，若句子A1的B為最大值，則將A1 tag 為B
         already_found = set()
@@ -176,8 +176,10 @@ if __name__ == '__main__':
             # move_indicator 找出最大值的句子位置
             while max_BPMRC[move_indicator] != 0:
                 # current_max_move_index = max(
-                    # enumerate(result_moves[move_indicator]), key=itemgetter(1))[0]
-                current_max_move_index = heappop(result_moves[move_indicator])[1]
+                # enumerate(result_moves[move_indicator]),
+                # key=itemgetter(1))[0]
+                current_max_move_index = heappop(
+                    result_moves[move_indicator])[1]
 
                 # current_max_move_index = result_moves[
                 #     move_indicator].index(max(result_moves[move_indicator]))
@@ -195,7 +197,8 @@ if __name__ == '__main__':
                 # print "target_sentences: " + target_sentences
                 #print [current_max_move_index][0]
                 # print target_sentences
-                sent[current_max_move_index].moves.append(BPMRC[move_indicator])
+                sent[current_max_move_index].moves.append(
+                    BPMRC[move_indicator])
                 # print BPMRC[move_indicator]
                 # print sent[target_sentences]
                 # m_sent_len = len(sent[current_max_move_index].ngrams)
@@ -212,15 +215,16 @@ if __name__ == '__main__':
                 # word_len = len(update_word_list[0])
 
                 # 將sentences上的4-gram update到moves={...}上
-                moves_update(moves, move_indicator, sent[current_max_move_index].ngrams)
+                moves_update(moves, move_indicator,
+                             sent[current_max_move_index].ngrams)
 
-        print ("paragraph_count: " + str(paragraph_count))
+        print("paragraph_count: " + str(paragraph_count))
         print("--- %s seconds ---" % (time.time() - start_time))
 
 # 計算完10篇文章之後，將moves={...} 寫入file 當作下一次的initial 先驗機率
     fileopen = open('moves_data71.txt', 'w')
     # len(moves)
-    print ("moves len: " + str(len(moves)))
+    print("moves len: " + str(len(moves)))
     for gram in moves.iterkeys():
         strli = ' '.join(gram)
         new_count = moves.get(gram)
