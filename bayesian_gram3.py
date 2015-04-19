@@ -92,9 +92,9 @@ def gen_new_moves(sent, moves):
                     BPMRC_TOTAL[i] += bayesian(0.01, gram_len)
 
         for j in range(0, 5):
-            heappush(result_moves[j], (-BPMRC_TOTAL[j], sent_idx))
+            # heappush(result_moves[j], (-BPMRC_TOTAL[j], sent_idx))
 
-            # result_moves[j].append((sent_idx, BPMRC_TOTAL[j]))
+            result_moves[j].append((sent_idx, BPMRC_TOTAL[j]))
 
     return result_moves
 
@@ -165,6 +165,10 @@ if __name__ == '__main__':
 
         # B[],P[],M[],R[],C[]
         result_moves = gen_new_moves(sent, moves)
+        from operator import itemgetter
+        result_moves = [sorted(result_move, key=itemgetter(1))
+                        for result_move in result_moves]
+
         # print (sent)
 
         # 所有句子當中的B，若句子A1的B為最大值，則將A1 tag 為B
@@ -178,8 +182,9 @@ if __name__ == '__main__':
                 # current_max_move_index = max(
                 # enumerate(result_moves[move_indicator]),
                 # key=itemgetter(1))[0]
-                current_max_move_index = heappop(
-                    result_moves[move_indicator])[1]
+                # current_max_move_index = heappop(
+                    # result_moves[move_indicator])[1]
+                current_max_move_index = result_moves[move_indicator].pop()[0]
 
                 # current_max_move_index = result_moves[
                 #     move_indicator].index(max(result_moves[move_indicator]))
