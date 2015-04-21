@@ -1,6 +1,7 @@
 # coding=UTF-8
 
 from __future__ import division
+from __future__ import print_function
 import time
 import math
 from nltk.util import ngrams as gen_ngrams
@@ -8,35 +9,40 @@ from collections import defaultdict
 
 # Read moves from file
 
+import json
+
 
 def get_moves_data(filename):
-    moves = defaultdict(list)
-    moves_data = open(filename, 'r')
-    while True:
-        keyword = moves_data.readline()
-        if keyword != '':
-            temp_line = keyword.split(' ')
-            # temp_list 存BPMRC的count or 機率 0.7 0.1 0.1 0.05 0.05
-            temp_list = []
-            # print "temp_line=\"" + str(temp_line) + "\" and temp_list= \"" +
-            # str(temp_list)
+    with open(filename) as f:
+        return json.load(f)
 
-            # 將前面當作4-gram (major current focus in 當作dict的key
-            # Does not include 9 when using range() in python
-            for i in range(4, 9):
-                temp_list.append(float(temp_line[i]))
-            # print temp_list
-            moves[
-                temp_line[0],
-                temp_line[1],
-                temp_line[2],
-                temp_line[3]] = temp_list
+    # moves = defaultdict(list)
+    # moves_data = open(filename, 'r')
+    # while True:
+    #     keyword = moves_data.readline()
+    #     if keyword != '':
+    #         temp_line = keyword.split(' ')
+    #         # temp_list 存BPMRC的count or 機率 0.7 0.1 0.1 0.05 0.05
+    #         temp_list = []
+    #         # print "temp_line=\"" + str(temp_line) + "\" and temp_list= \"" +
+    #         # str(temp_list)
 
-        else:
-            break
-    # print len(moves)
-    moves_data.close()
-    return moves
+    #         # 將前面當作4-gram (major current focus in 當作dict的key
+    #         # Does not include 9 when using range() in python
+    #         for i in range(4, 9):
+    #             temp_list.append(float(temp_line[i]))
+    #         # print temp_list
+    #         moves[
+    #             temp_line[0],
+    #             temp_line[1],
+    #             temp_line[2],
+    #             temp_line[3]] = temp_list
+
+    #     else:
+    #         break
+    # # print len(moves)
+    # moves_data.close()
+    # return moves
 
 
 def sent_tokenizer(paragraph):
@@ -62,9 +68,6 @@ def get_max_BPMRC(sent_length):
 def bayesian(moves_prob, gram_len):
     grams_movesprobability_byexp = math.log10(moves_prob)
     return grams_movesprobability_byexp - gram_len
-
-
-from heapq import heappush, heappop
 
 
 def gen_new_moves(sent, moves):
@@ -122,7 +125,7 @@ SentData = namedtuple('SentData', ['sentence', 'ngrams', 'moves'])
 def moves_update(moves, move_indicator, max_move_sent_ngrams):
     for gram in max_move_sent_ngrams:
         # gram = update_word_list[0][i]
-
+        gram = ' '.join(gram)
         # 若gram存在於moves={...}
         if gram in moves:
             moves[gram][move_indicator] += 1
@@ -136,9 +139,64 @@ def moves_update(moves, move_indicator, max_move_sent_ngrams):
             moves[gram] = moves_gram_data
 
 
+def most_likely_move(result_moves, sent, moves):
+
+    # 所有句子當中的B，若句子A1的B為最大值，則將A1 tag 為B
+    already_found = set()
+    # print "Moves is B: "
+
+    for move_indicator in range(0, 5):
+        BPMRC = 'BPMRC'
+        # move_indicator 找出最大值的句子位置
+        while max_BPMRC[move_indicator] != 0:
+            # current_max_move_index = max(
+            # enumerate(result_moves[move_indicator]),
+            # key=itemgetter(1))[0]
+            # current_max_move_index = heappop(
+                # result_moves[move_indicator])[1]
+            current_max_move_index = result_moves[move_indicator].pop()[0]
+
+            # current_max_move_index = result_moves[
+            #     move_indicator].index(max(result_moves[move_indicator]))
+            # 若是該句已經被tag，則尋找第二高的句子為B
+
+            if current_max_move_index in already_found:
+                continue
+                # result_moves[move_indicator][current_max_move_index] = -10000
+
+            already_found.add(current_max_move_index)
+            #target_sentences = sent.items()[current_max_move_index][0]
+            # target_sentences = sentences_in_this_round[
+            # current_max_move_index]
+            # print "target_sentences2: " + target_sentences2
+            # print "target_sentences: " + target_sentences
+            #print [current_max_move_index][0]
+            # print target_sentences
+            sent[current_max_move_index].moves.append(
+                BPMRC[move_indicator])
+            # print BPMRC[move_indicator]
+            # print sent[target_sentences]
+            # m_sent_len = len(sent[current_max_move_index].ngrams)
+
+            # update_word_list=[]
+            # for i in range(0,m_sent_len-2):
+            # update_word_list.append(sent[target_sentences][i])
+            # update_word_list = []
+            # update_word_list.append(
+            # sent[current_max_move_index].ngrams)
+            # print "update_word_list2 = " + str(update_word_list2)
+            max_BPMRC[move_indicator] -= 1
+            # print "update_word_list= " + str(update_word_list)
+            # word_len = len(update_word_list[0])
+
+            # 將sentences上的4-gram update到moves={...}上
+            moves_update(moves, move_indicator,
+                         sent[current_max_move_index].ngrams)
+
+
 if __name__ == '__main__':
 
-    moves = get_moves_data('moves_data_initial.txt')
+    moves = get_moves_data('moves_data_initial.json')
 
     # Read paragraph from file
     sent = []
@@ -170,75 +228,20 @@ if __name__ == '__main__':
                         for result_move in result_moves]
 
         # print (sent)
-
-        # 所有句子當中的B，若句子A1的B為最大值，則將A1 tag 為B
-        already_found = set()
-        # print "Moves is B: "
-
-        for move_indicator in range(0, 5):
-            BPMRC = 'BPMRC'
-            # move_indicator 找出最大值的句子位置
-            while max_BPMRC[move_indicator] != 0:
-                # current_max_move_index = max(
-                # enumerate(result_moves[move_indicator]),
-                # key=itemgetter(1))[0]
-                # current_max_move_index = heappop(
-                    # result_moves[move_indicator])[1]
-                current_max_move_index = result_moves[move_indicator].pop()[0]
-
-                # current_max_move_index = result_moves[
-                #     move_indicator].index(max(result_moves[move_indicator]))
-                # 若是該句已經被tag，則尋找第二高的句子為B
-
-                if current_max_move_index in already_found:
-                    continue
-                    # result_moves[move_indicator][current_max_move_index] = -10000
-
-                already_found.add(current_max_move_index)
-                #target_sentences = sent.items()[current_max_move_index][0]
-                # target_sentences = sentences_in_this_round[
-                # current_max_move_index]
-                # print "target_sentences2: " + target_sentences2
-                # print "target_sentences: " + target_sentences
-                #print [current_max_move_index][0]
-                # print target_sentences
-                sent[current_max_move_index].moves.append(
-                    BPMRC[move_indicator])
-                # print BPMRC[move_indicator]
-                # print sent[target_sentences]
-                # m_sent_len = len(sent[current_max_move_index].ngrams)
-
-                # update_word_list=[]
-                # for i in range(0,m_sent_len-2):
-                # update_word_list.append(sent[target_sentences][i])
-                # update_word_list = []
-                # update_word_list.append(
-                # sent[current_max_move_index].ngrams)
-                # print "update_word_list2 = " + str(update_word_list2)
-                max_BPMRC[move_indicator] -= 1
-                # print "update_word_list= " + str(update_word_list)
-                # word_len = len(update_word_list[0])
-
-                # 將sentences上的4-gram update到moves={...}上
-                moves_update(moves, move_indicator,
-                             sent[current_max_move_index].ngrams)
+        most_likely_move(result_moves, sent, moves)
 
         print("paragraph_count: " + str(paragraph_count))
         print("--- %s seconds ---" % (time.time() - start_time))
 
-# 計算完10篇文章之後，將moves={...} 寫入file 當作下一次的initial 先驗機率
-    fileopen = open('moves_data71.txt', 'w')
-    # len(moves)
+    # 計算完10篇文章之後，將moves={...} 寫入file 當作下一次的initial 先驗機率
     print("moves len: " + str(len(moves)))
-    for gram in moves.iterkeys():
-        strli = ' '.join(gram)
-        new_count = moves.get(gram)
-        li = str(new_count[0]) + ' ' + str(new_count[1]) + ' ' + \
-            str(new_count[2]) + ' ' + \
-            str(new_count[3]) + ' ' + str(new_count[4])
-        fileopen.write(strli + ' ' + li + '\n')
-    # fileopen.write(str(sent))
-    fileopen.close()
+    with open('moves_data71.json', 'w') as f:
+        json.dump(moves, f)
+
+        # for gram, new_counts in moves.iteritems():
+        #     strli = ' '.join(gram)
+        #     li = ' '.join(str(count) for count in new_counts)
+        #     print('{}\t{}'.format(strli, li), file=f)
 
     # print moves
     print("--- %s Total seconds ---" % (time.time() - start_time))
